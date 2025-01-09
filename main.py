@@ -5,7 +5,6 @@ import time
 from threading import Thread
 from tkinter import messagebox
 
-
 class ResourceMonitor:
     def __init__(self, interval=1):
         self.interval = interval
@@ -31,11 +30,11 @@ class ResourceMonitor:
         while self.recording:
             try:
                 cpu = psutil.cpu_percent()
-                memory = psutil.virtual_memory().percent
-                disk = psutil.disk_usage('/').percent
+                memory_info = psutil.virtual_memory()
+                disk_info = psutil.disk_usage('/')
                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                 cursor.execute("INSERT INTO resources (timestamp, cpu, memory, disk) VALUES (?, ?, ?, ?)",
-                               (timestamp, cpu, memory, disk))
+                               (timestamp, cpu, memory_info.percent, disk_info.percent))
                 db_connection.commit()
                 time.sleep(self.interval)
             except Exception as e:
@@ -47,10 +46,9 @@ class ResourceMonitor:
 
     def get_resources(self):
         cpu = psutil.cpu_percent()
-        memory = psutil.virtual_memory().percent
-        disk = psutil.disk_usage('/').percent
-        return cpu, memory, disk
-
+        memory_info = psutil.virtual_memory()
+        disk_info = psutil.disk_usage('/')
+        return cpu, memory_info, disk_info
 
 class App:
     def __init__(self, root):
@@ -64,10 +62,10 @@ class App:
         self.cpu_label = tk.Label(root, text="CPU: 0%")
         self.cpu_label.pack()
 
-        self.memory_label = tk.Label(root, text="Memory: 0%")
+        self.memory_label = tk.Label(root, text="ОЗУ (Свободно/Всего): 0% / 0%")
         self.memory_label.pack()
 
-        self.disk_label = tk.Label(root, text="Disk: 0%")
+        self.disk_label = tk.Label(root, text="ПЗУ (Свободно/Всего): 0% / 0%")
         self.disk_label.pack()
 
         self.interval_label = tk.Label(root, text="Интервал обновления (сек):")
@@ -90,10 +88,10 @@ class App:
         self.update_resources()
 
     def update_resources(self):
-        cpu, memory, disk = self.monitor.get_resources()
+        cpu, memory_info, disk_info = self.monitor.get_resources()
         self.cpu_label.config(text=f"CPU: {cpu}%")
-        self.memory_label.config(text=f"Memory: {memory}%")
-        self.disk_label.config(text=f"Disk: {disk}%")
+        self.memory_label.config(text=f"ОЗУ (Свободно/Всего): {memory_info.available / (1024 ** 2):.2f} MB / {memory_info.total / (1024 ** 2):.2f} MB")
+        self.disk_label.config(text=f"ПЗУ (Свободно/Всего): {disk_info.free / (1024 ** 2):.2f} MB / {disk_info.total / (1024 ** 2):.2f} MB")
         self.root.after(1000, self.update_resources)
 
     def start_recording(self):
@@ -123,7 +121,6 @@ class App:
             elapsed_time = int(time.time() - self.timer_start_time)
             self.timer_label.config(text=f"Время записи: {elapsed_time} сек")
             self.root.after(1000, self.update_timer)
-
 
 if __name__ == "__main__":
     root = tk.Tk()
